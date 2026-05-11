@@ -21,6 +21,7 @@ const AREA_SUFFIXES = ["自治县", "自治旗", "新区", "城区", "林区", "
 const CITY_QUESTION_WORDS = ["哪个城市", "哪座城市", "在哪个市", "在哪个城市", "哪个市", "什么城市"];
 const AREA_QUESTION_WORDS = ["哪个区", "哪个县", "哪个区域", "哪一区", "什么区", "什么县"];
 const FALSE_AREA_WORDS = new Set(["奔驰", "如果是", "用不着嘞", "济南河南", "苏州"]);
+const NON_LOCATION_CITY_FOLLOWERS = ["车展", "国际车展", "展会", "发布会", "车展上", "车展期间", "车展现场", "亮相", "区", "县", "镇", "乡", "街道"];
 const CITY_ALIASES = [
   "北京", "上海", "天津", "重庆", "石家庄", "唐山", "秦皇岛", "邯郸", "邢台", "保定", "张家口", "承德", "沧州", "廊坊", "衡水",
   "太原", "大同", "阳泉", "长治", "晋城", "朔州", "晋中", "运城", "忻州", "临汾", "吕梁", "呼和浩特", "包头", "乌海", "赤峰",
@@ -109,6 +110,22 @@ function normalizeForSearch(value) {
   return text(value).replace(/\s+/g, "");
 }
 
+function findLocationCityAlias(value) {
+  const source = normalizeForSearch(value)
+    .replace(/[，。,.；;！!？?]/g, "")
+    .replace(/^(我在|现在在|目前在|在|是|啊|嗯|呃|哦)/, "");
+
+  for (const name of CITY_ALIASES) {
+    const index = source.indexOf(name);
+    if (index === -1) continue;
+    const after = source.slice(index + name.length, index + name.length + 6);
+    if (NON_LOCATION_CITY_FOLLOWERS.some((word) => after.startsWith(word))) continue;
+    return name;
+  }
+
+  return "";
+}
+
 function parseTurns(callRecord) {
   const source = text(callRecord);
   const turns = [];
@@ -130,10 +147,7 @@ function hasAny(source, words) {
 }
 
 function normalizeCityName(value) {
-  let city = normalizeForSearch(value)
-    .replace(/[，。,.；;！!？?]/g, "")
-    .replace(/^(我在|现在在|目前在|在|是|啊|嗯|呃|哦)/, "");
-  const hit = CITY_ALIASES.find((name) => city.includes(name));
+  const hit = findLocationCityAlias(value);
   if (!hit) return "";
   return DIRECT_CITIES.has(`${hit}市`) ? `${hit}市` : `${hit}市`;
 }
