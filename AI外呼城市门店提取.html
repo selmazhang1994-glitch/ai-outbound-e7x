@@ -1,0 +1,81 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>外呼明细提取工具</title>
+  <link rel="stylesheet" href="./styles.css">
+</head>
+<body>
+  <main class="app">
+    <section class="panel">
+      <div class="title-row">
+        <div>
+          <h1>外呼明细提取工具</h1>
+          <p>上传原始 Excel，自动提取任务号、门店、城市区域、客户意向、购车时间、意向车和战败原因。</p>
+        </div>
+      </div>
+
+      <label class="drop-zone" for="fileInput" id="dropZone">
+        <input id="fileInput" type="file" accept=".xlsx,.xls">
+        <span class="upload-icon" aria-hidden="true">↑</span>
+        <strong>选择或拖入外呼明细表</strong>
+        <small>支持 .xlsx / .xls</small>
+      </label>
+
+      <div class="actions">
+        <button id="processButton" type="button" disabled>生成处理后的 Excel</button>
+        <button id="resetButton" type="button" class="secondary" disabled>清空</button>
+      </div>
+
+      <div class="status" id="status">等待上传文件</div>
+    </section>
+
+    <section class="summary" id="summary" hidden>
+      <div>
+        <span class="label">文件</span>
+        <strong id="fileName"></strong>
+      </div>
+      <div>
+        <span class="label">数据行</span>
+        <strong id="rowCount">0</strong>
+      </div>
+      <div>
+        <span class="label">提取任务号</span>
+        <strong id="taskCount">0</strong>
+      </div>
+      <div>
+        <span class="label">提取门店</span>
+        <strong id="dealerCount">0</strong>
+      </div>
+      <div>
+        <span class="label">提取城市</span>
+        <strong id="cityCount">0</strong>
+      </div>
+      <div>
+        <span class="label">提取区域</span>
+        <strong id="areaCount">0</strong>
+      </div>
+      <div>
+        <span class="label">客户意向</span>
+        <strong id="intentCount">0</strong>
+      </div>
+      <div>
+        <span class="label">购车时间</span>
+        <strong id="purchaseTimeCount">0</strong>
+      </div>
+      <div>
+        <span class="label">意向车</span>
+        <strong id="carModelCount">0</strong>
+      </div>
+      <div>
+        <span class="label">战败原因</span>
+        <strong id="defeatReasonCount">0</strong>
+      </div>
+    </section>
+  </main>
+
+  <script src="./xlsx.full.min.js"></script>
+  <script src="./app.js"></script>
+</body>
+</html>
