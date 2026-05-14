@@ -10,6 +10,10 @@ const taskCountEl = document.getElementById("taskCount");
 const dealerCountEl = document.getElementById("dealerCount");
 const cityCountEl = document.getElementById("cityCount");
 const areaCountEl = document.getElementById("areaCount");
+const intentCountEl = document.getElementById("intentCount");
+const purchaseTimeCountEl = document.getElementById("purchaseTimeCount");
+const carModelCountEl = document.getElementById("carModelCount");
+const defeatReasonCountEl = document.getElementById("defeatReasonCount");
 
 let selectedFile = null;
 
@@ -22,6 +26,7 @@ const CITY_QUESTION_WORDS = ["哪个城市", "哪座城市", "在哪个市", "�
 const AREA_QUESTION_WORDS = ["哪个区", "哪个县", "哪个区域", "哪一区", "什么区", "什么县"];
 const FALSE_AREA_WORDS = new Set(["奔驰", "如果是", "用不着嘞", "济南河南", "苏州"]);
 const NON_LOCATION_CITY_FOLLOWERS = ["车展", "国际车展", "展会", "发布会", "车展上", "车展期间", "车展现场", "亮相", "区", "县", "镇", "乡", "街道"];
+const NON_LOCATION_CITY_CONTEXTS = ["生产基地位于", "基地位于", "工厂位于", "总部位于", "位于广州", "宁德时代"];
 const CITY_ALIASES = [
   "北京", "上海", "天津", "重庆", "石家庄", "唐山", "秦皇岛", "邯郸", "邢台", "保定", "张家口", "承德", "沧州", "廊坊", "衡水",
   "太原", "大同", "阳泉", "长治", "晋城", "朔州", "晋中", "运城", "忻州", "临汾", "吕梁", "呼和浩特", "包头", "乌海", "赤峰",
@@ -106,6 +111,39 @@ function extractDealerName(value) {
   return "";
 }
 
+function splitRuleTags(value) {
+  return text(value)
+    .split(/[;,，；]/)
+    .map((item) => item.trim())
+    .filter(Boolean);
+}
+
+function extractRuleTag(value, label) {
+  const prefix = `${label}_`;
+  const tag = splitRuleTags(value).find((item) => item.startsWith(prefix));
+  return tag ? text(tag.slice(prefix.length)) : "";
+}
+
+function extractIntentCarFromVariables(value) {
+  const source = text(value);
+  if (!source) return "";
+
+  const quoted = source.match(/"intentionalCarSeries"\s*:\s*"([^"]+)"/i);
+  if (quoted) return text(quoted[1]);
+
+  const plain = source.match(/intentionalCarSeries\s*[:：]\s*([^,，;；}]+)/i);
+  return plain ? text(plain[1]).replace(/^["']|["']$/g, "") : "";
+}
+
+function extractLeadFields(ruleTags, customerVariables) {
+  return {
+    intent: extractRuleTag(ruleTags, "意向"),
+    purchaseTime: extractRuleTag(ruleTags, "购车时间"),
+    carModel: extractRuleTag(ruleTags, "意向车") || extractIntentCarFromVariables(customerVariables),
+    defeatReason: extractRuleTag(ruleTags, "战败原因")
+  };
+}
+
 function normalizeForSearch(value) {
   return text(value).replace(/\s+/g, "");
 }
@@ -114,6 +152,8 @@ function findLocationCityAlias(value) {
   const source = normalizeForSearch(value)
     .replace(/[，。,.；;！!？?]/g, "")
     .replace(/^(我在|现在在|目前在|在|是|啊|嗯|呃|哦)/, "");
+
+  if (NON_LOCATION_CITY_CONTEXTS.some((word) => source.includes(word))) return "";
 
   for (const name of CITY_ALIASES) {
     const index = source.indexOf(name);
@@ -272,7 +312,18 @@ function updateSelectedFile(file) {
 
 function appendColumns(rows) {
   if (!rows.length) {
-    return { rows, rowCount: 0, taskCount: 0, dealerCount: 0, cityCount: 0, areaCount: 0 };
+    return {
+      rows,
+      rowCount: 0,
+      taskCount: 0,
+      dealerCount: 0,
+      cityCount: 0,
+      areaCount: 0,
+      intentCount: 0,
+      purchaseTimeCount: 0,
+      carModelCount: 0,
+      defeatReasonCount: 0
+    };
   }
 
   const output = rows.map((row) => Array.isArray(row) ? row.slice() : []);
@@ -281,6 +332,10 @@ function appendColumns(rows) {
   let dealerCount = 0;
   let cityCount = 0;
   let areaCount = 0;
+  let intentCount = 0;
+  let purchaseTimeCount = 0;
+  let carModelCount = 0;
+  let defeatReasonCount = 0;
 
   output.forEach((row) => {
     while (row.length < width) row.push("");
@@ -290,28 +345,49 @@ function appendColumns(rows) {
   let dealerCol = ensureColumn(output, "问到的门店", taskCol);
   let cityCol = ensureColumn(output, "客户所在的城市", dealerCol);
   let areaCol = ensureColumn(output, "客户所在的区域", cityCol, ["客户所在的区县"]);
+  let intentCol = ensureColumn(output, "客户的意向", areaCol);
+  let purchaseTimeCol = ensureColumn(output, "购车时间", intentCol);
+  let carModelCol = ensureColumn(output, "意向车", purchaseTimeCol);
+  let defeatReasonCol = ensureColumn(output, "战败原因", carModelCol);
 
   const sourceTaskCol = findColumn(output[0], ["客户变量"], TASK_COL_INDEX);
-  const sourceDealerCol = findColumn(output[0], ["规则标签"], DEALER_COL_INDEX);
+  const sourceRuleCol = findColumn(output[0], ["规则标签"], DEALER_COL_INDEX);
   const sourceCallRecordCol = findColumn(output[0], ["通话记录"], CALL_RECORD_COL_INDEX);
   taskCol = findColumn(output[0], ["任务号"]);
   dealerCol = findColumn(output[0], ["问到的门店"]);
   cityCol = findColumn(output[0], ["客户所在的城市"]);
   areaCol = findColumn(output[0], ["客户所在的区域"]);
+  intentCol = findColumn(output[0], ["客户的意向"]);
+  purchaseTimeCol = findColumn(output[0], ["购车时间"]);
+  carModelCol = findColumn(output[0], ["意向车"]);
+  defeatReasonCol = findColumn(output[0], ["战败原因"]);
 
   for (let i = 1; i < output.length; i += 1) {
     const taskId = extractTaskId(output[i][sourceTaskCol]) || text(output[i][taskCol]);
-    const dealerName = extractDealerName(output[i][sourceDealerCol]) || text(output[i][dealerCol]);
+    const dealerName = extractDealerName(output[i][sourceRuleCol]) || text(output[i][dealerCol]);
     const cityName = extractCity(output[i][sourceCallRecordCol], dealerName) || text(output[i][cityCol]);
     const areaName = extractArea(output[i][sourceCallRecordCol], cityName, dealerName) || text(output[i][areaCol]);
+    const leadFields = extractLeadFields(output[i][sourceRuleCol], output[i][sourceTaskCol]);
+    const intent = leadFields.intent || text(output[i][intentCol]);
+    const purchaseTime = leadFields.purchaseTime || text(output[i][purchaseTimeCol]);
+    const carModel = leadFields.carModel || text(output[i][carModelCol]);
+    const defeatReason = leadFields.defeatReason || text(output[i][defeatReasonCol]);
     output[i][taskCol] = taskId;
     output[i][dealerCol] = dealerName;
     output[i][cityCol] = cityName;
     output[i][areaCol] = areaName;
+    output[i][intentCol] = intent;
+    output[i][purchaseTimeCol] = purchaseTime;
+    output[i][carModelCol] = carModel;
+    output[i][defeatReasonCol] = defeatReason;
     if (taskId) taskCount += 1;
     if (dealerName) dealerCount += 1;
     if (cityName) cityCount += 1;
     if (areaName) areaCount += 1;
+    if (intent) intentCount += 1;
+    if (purchaseTime) purchaseTimeCount += 1;
+    if (carModel) carModelCount += 1;
+    if (defeatReason) defeatReasonCount += 1;
   }
 
   return {
@@ -320,7 +396,11 @@ function appendColumns(rows) {
     taskCount,
     dealerCount,
     cityCount,
-    areaCount
+    areaCount,
+    intentCount,
+    purchaseTimeCount,
+    carModelCount,
+    defeatReasonCount
   };
 }
 
@@ -366,6 +446,10 @@ async function processFile() {
     dealerCountEl.textContent = result.dealerCount;
     cityCountEl.textContent = result.cityCount;
     areaCountEl.textContent = result.areaCount;
+    intentCountEl.textContent = result.intentCount;
+    purchaseTimeCountEl.textContent = result.purchaseTimeCount;
+    carModelCountEl.textContent = result.carModelCount;
+    defeatReasonCountEl.textContent = result.defeatReasonCount;
     summaryEl.hidden = false;
     setStatus("处理完成，已开始下载。", "done");
   } catch (error) {
