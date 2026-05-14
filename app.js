@@ -76,8 +76,8 @@ function extractTaskId(value) {
   if (!source) return "";
 
   const patterns = [
-    /(?:^|[^A-Za-z])taskId[^0-9]{0,30}([0-9]{7})/i,
-    /(?:^|[^A-Za-z])task_id[^0-9]{0,30}([0-9]{7})/i
+    /(?:^|[^A-Za-z])taskId[^0-9]{0,30}([0-9]{7,9})(?![0-9])/i,
+    /(?:^|[^A-Za-z])task_id[^0-9]{0,30}([0-9]{7,9})(?![0-9])/i
   ];
 
   for (const pattern of patterns) {
